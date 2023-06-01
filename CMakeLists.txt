@@ -9,26 +9,33 @@ set(CMAKE_CXX_FLAGS "${CXX_FLAGS} -Wl,-Bstatic -Wl,-Bdynamic")
 
 include(Dependency.cmake)
 
-add_definitions(${PCL_DEFINITIONS})
 
-add_executable(${PROJECT_NAME}
+
+add_executable(ground_removal
     src/main.cpp
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+target_include_directories(ground_removal PUBLIC
+    include    
     ${libCarla_INCLUDE_DIR}
     ${DEP_INCLUDE_DIR}
     ${PCL_INCLUDE_DIRS}
-    include
+    ${YAML_CPP_INCLUDE_DIR}
 )
 
-target_link_directories(${PROJECT_NAME} PUBLIC
+target_link_directories(ground_removal PUBLIC
     ${libCarla_LIB_DIR}
+    ${DEP_LIB_DIR}
     ${PCL_LIBRARY_DIRS}
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+target_link_libraries(ground_removal PUBLIC
     ${libCarla_LIBS}
+    ${DEP_LIBS}
     ${PCL_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
 )
 
+add_dependencies(ground_removal
+    ${DEP_LIST}
+)

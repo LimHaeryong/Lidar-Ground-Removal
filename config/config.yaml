@@ -1,0 +1,19 @@
+CLIENT:
+  HOST: localhost
+  PORT: 2000
+
+MAP: Town05
+
+VEHICLE_ID: vehicle.mercedes.coupe_2020
+
+SENSOR:
+  LIDAR:
+    MODEL: sensor.lidar.ray_cast
+    LOCATION: [-0.5, 0.0, 1.8] 
+    ROTATION: [0.0, 0.0, 0.0]
+    UPPER_FOV: 15
+    LOWER_FOV: -25
+    CHANNELS: 32
+    RANGE: 30
+    ROTATION_FREQUENCY: 60
+    POINTS_PER_SECOND: 500000
