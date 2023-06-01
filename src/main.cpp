@@ -1,5 +1,12 @@
 #include <carla/client/Client.h>
 #include <carla/client/BlueprintLibrary.h>
+#include <carla/client/Sensor.h>
+#include <carla/geom/Transform.h>
+#include <carla/sensor/data/LidarData.h>
+#include <carla/sensor/data/LidarMeasurement.h>
+
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 
 #include <yaml-cpp/yaml.h>
 #include <spdlog/spdlog.h>
@@ -10,6 +17,10 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+using PointT = pcl::PointXYZ;
+using PointCloudT = pcl::PointCloud<PointT>;
+using PointCloudPtr = pcl::PointCloud<PointT>::Ptr;
 
 using namespace std::chrono_literals;
 
@@ -47,7 +58,7 @@ int main()
 	auto spawnPoint = map->GetRecommendedSpawnPoints().front();
 	auto vehicleActor = world.SpawnActor(vehicleModel, spawnPoint);
 	auto vehicle = boost::static_pointer_cast<carla::client::Vehicle>(vehicleActor);
-	
+
 	auto spectator = world.GetSpectator();
 	auto specTransform = spawnPoint;
 	specTransform.location += 32.0f * specTransform.GetForwardVector();
@@ -64,10 +75,36 @@ int main()
 	lidarModel.SetAttribute("rotation_frequency", LIDAR["ROTATION_FREQUENCY"].as<std::string>());
 	lidarModel.SetAttribute("points_per_second", LIDAR["POINTS_PER_SECOND"].as<std::string>());
 
-	auto lidarLocation = carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]);
-	auto lidarRotation = carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]);
-	auto lidarTransform = carla::geom::Transform(lidarLocation, lidarRotation);
+	auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]), 
+												 carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
 	auto lidarActor = world.SpawnActor(lidarModel, lidarTransform, vehicleActor.get());
+	auto lidar = boost::static_pointer_cast<carla::client::Sensor>(lidarActor);
+
+	PointCloudPtr scanCloud = pcl::make_shared<PointCloudT>();
+	PointCloudPtr bufferCloud = pcl::make_shared<PointCloudT>();
+	PointCloudPtr fileredCloud = pcl::make_shared<PointCloudT>();
+
+	bool newScan = false;
+	std::chrono::time_point<std::chrono::system_clock> lastScanTime;
+	lidar->Listen([&newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
+	{
+		if(newScan)
+		{
+			bufferCloud->points.clear();
+			auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
+			auto originLocation = carla::geom::Location(0.0f, 0.0f, 0.0f);
+			for(auto s : *scan)
+			{
+				if(originLocation.Distance(s.point) > 5.0f)
+				{
+					bufferCloud->points.emplace_back(s.point.x, s.point.y, s.point.z);
+				}
+			}
+			bufferCloud->swap(*scanCloud);
+			lastScanTime = std::chrono::system_clock::now();
+			newScan = false;
+		}
+	});
 
 	bool exitLoop = false;
 	SPDLOG_INFO("Start main loop");
@@ -83,8 +120,8 @@ int main()
 			}
 		}
 
-		SPDLOG_INFO("loop");
-		std::this_thread::sleep_for(1s);
+		
+
 	}
 
 	vehicle->Destroy();
