@@ -7,12 +7,16 @@
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 #include <yaml-cpp/yaml.h>
 #include <spdlog/spdlog.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -82,16 +86,21 @@ int main()
 
 	PointCloudPtr scanCloud = pcl::make_shared<PointCloudT>();
 	PointCloudPtr bufferCloud = pcl::make_shared<PointCloudT>();
-	PointCloudPtr fileredCloud = pcl::make_shared<PointCloudT>();
+	PointCloudPtr filteredCloud = pcl::make_shared<PointCloudT>();
 
-	bool newScan = false;
+	pcl::VoxelGrid<PointT> voxelFilter;
+	voxelFilter.setLeafSize(0.5f, 0.5f, 0.5f);
+
+	std::mutex scanCloudMutex;
+	std::atomic<bool> newScan(false);
 	std::chrono::time_point<std::chrono::system_clock> lastScanTime;
-	lidar->Listen([&newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
+	lidar->Listen([&scanCloudMutex, &newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
 	{
 		if(newScan)
 		{
-			bufferCloud->points.clear();
 			auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
+			bufferCloud->points.clear();
+			bufferCloud->points.reserve(scan->size());
 			auto originLocation = carla::geom::Location(0.0f, 0.0f, 0.0f);
 			for(auto s : *scan)
 			{
@@ -100,30 +109,41 @@ int main()
 					bufferCloud->points.emplace_back(s.point.x, s.point.y, s.point.z);
 				}
 			}
-			bufferCloud->swap(*scanCloud);
-			lastScanTime = std::chrono::system_clock::now();
+			{
+				std::lock_guard<std::mutex> lock(scanCloudMutex);
+				bufferCloud.swap(scanCloud);
+				lastScanTime = std::chrono::system_clock::now();
+			}
 			newScan = false;
+			
 		}
 	});
 
+	pcl::visualization::CloudViewer viewer("Cloud Viewer");
+	viewer.showCloud(filteredCloud);
+
 	bool exitLoop = false;
 	SPDLOG_INFO("Start main loop");
-	while(!exitLoop)
+	while(!viewer.wasStopped())
 	{
-		if(std::cin.peek() != EOF)
+		if(newScan)
 		{
-			char key;
-			std::cin >> key;
-			if(key == 27)
-			{
-				exitLoop = true;
-			}
+			continue;
 		}
 
-		
+		{
+			std::lock_guard<std::mutex> lock(scanCloudMutex);
+			voxelFilter.setInputCloud(scanCloud);
+			voxelFilter.filter(*filteredCloud);
+			
+		}
 
+		newScan = true;
+		SPDLOG_INFO("show filtered cloud. cloud size : {}", filteredCloud->points.size());
+		viewer.showCloud(filteredCloud);
 	}
 
+	lidar->Destroy();
 	vehicle->Destroy();
 	SPDLOG_INFO("End program");
 	return 0;
