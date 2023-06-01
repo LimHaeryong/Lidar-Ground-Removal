@@ -35,9 +35,9 @@ cp -r /path/to/carla-0.9.13/PythonAPI/carla/dependencies .
 mv dependencies libcarla-install
 ```
 
-### Compatibility
+### Tested Environment
 - Ubuntu 20.04
-
+- Nvidia RTX 3070 / driver version : 510
 ### Dependencies
 - docker, nvidia-docker
 - Cmake

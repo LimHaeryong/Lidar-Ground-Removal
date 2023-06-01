@@ -9,6 +9,8 @@ set(CMAKE_CXX_FLAGS "${CXX_FLAGS} -Wl,-Bstatic -Wl,-Bdynamic")
 
 include(Dependency.cmake)
 
+add_definitions(${PCL_DEFINITIONS})
+
 add_executable(${PROJECT_NAME}
     src/main.cpp
 )

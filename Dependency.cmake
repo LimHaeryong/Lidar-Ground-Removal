@@ -20,4 +20,3 @@ set(libCarla_LIBS
 set(DEP_INCLUDE_DIR ${libCarla_INCLUDE_DIR}/system)
 
 find_package(PCL REQUIRED)
-
