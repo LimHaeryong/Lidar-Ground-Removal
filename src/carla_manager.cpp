@@ -22,7 +22,8 @@ std::unique_ptr<CarlaManager> CarlaManager::createWithConfig(const YAML::Node& c
 
 CarlaManager::~CarlaManager()
 {
-
+    mVehicleActor->Destroy();
+    mLidarActor->Destroy();
 }
 
 bool CarlaManager::init(const YAML::Node& config)
