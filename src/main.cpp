@@ -8,10 +8,12 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/visualization/pcl_visualizer.h>
 
 #include <yaml-cpp/yaml.h>
 #include <spdlog/spdlog.h>
+
+#include <boost/smart_ptr.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -41,11 +43,13 @@ int main()
 
 	const auto HOST = config["CLIENT"]["HOST"].as<std::string>();
 	const auto PORT = config["CLIENT"]["PORT"].as<uint16_t>();
-	const auto MAP = config["MAP"].as<std::string>();
+	const auto FIXED_DELTA_SECONDS = config["WORLD"]["FIXED_DELTA_SECONDS"].as<double>();
+	const auto MAP = config["WORLD"]["MAP"].as<std::string>();
 	const auto VEHICLE_ID = config["VEHICLE_ID"].as<std::string>();
 	const auto LIDAR = config["SENSOR"]["LIDAR"];
 	const auto LIDAR_LOCATION = LIDAR["LOCATION"].as<std::vector<float>>();
 	const auto LIDAR_ROTATION = LIDAR["ROTATION"].as<std::vector<float>>();
+	const auto VOXEL_RESOLUTION = config["VOXEL_FILTER"]["RESOLUTION"].as<float>();
 
 	SPDLOG_INFO("Initialize client");
 	auto client = carla::client::Client(HOST, PORT);
@@ -54,6 +58,10 @@ int main()
 	client.LoadWorld(MAP);
 
 	auto world = client.GetWorld();
+	auto worldSetting = world.GetSettings();
+	worldSetting.fixed_delta_seconds = FIXED_DELTA_SECONDS;
+	world.ApplySettings(worldSetting, 0s);
+
 	auto bluePrintLibrary = world.GetBlueprintLibrary();
 	auto vehicleLibrary = bluePrintLibrary->Filter("vehicle");
 	auto vehicleModel = *(vehicleLibrary->Find(VEHICLE_ID));
@@ -78,6 +86,8 @@ int main()
 	lidarModel.SetAttribute("range", LIDAR["RANGE"].as<std::string>());
 	lidarModel.SetAttribute("rotation_frequency", LIDAR["ROTATION_FREQUENCY"].as<std::string>());
 	lidarModel.SetAttribute("points_per_second", LIDAR["POINTS_PER_SECOND"].as<std::string>());
+	lidarModel.SetAttribute("sensor_tick", LIDAR["SENSOR_TICK"].as<std::string>());
+	lidarModel.SetAttribute("noise_stddev", LIDAR["NOISE_STDDEV"].as<std::string>());
 
 	auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]), 
 												 carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
@@ -89,58 +99,72 @@ int main()
 	PointCloudPtr filteredCloud = pcl::make_shared<PointCloudT>();
 
 	pcl::VoxelGrid<PointT> voxelFilter;
-	voxelFilter.setLeafSize(0.5f, 0.5f, 0.5f);
+	voxelFilter.setLeafSize(VOXEL_RESOLUTION, VOXEL_RESOLUTION, VOXEL_RESOLUTION);
 
-	std::mutex scanCloudMutex;
+	std::mutex scanCloudMutex, bufferCloudMutex, viewerMutex;
 	std::atomic<bool> newScan(false);
 	std::chrono::time_point<std::chrono::system_clock> lastScanTime;
-	lidar->Listen([&scanCloudMutex, &newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
+	lidar->Listen([&scanCloudMutex, &bufferCloudMutex, &newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
 	{
 		if(newScan)
 		{
+			std::unique_lock<std::mutex> lockBuffer(bufferCloudMutex, std::try_to_lock);
+			if(!lockBuffer.owns_lock())
+			{
+				return;
+			}
 			auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
 			bufferCloud->points.clear();
 			bufferCloud->points.reserve(scan->size());
 			auto originLocation = carla::geom::Location(0.0f, 0.0f, 0.0f);
+			double a = (*scan).GetTimestamp();
+			SPDLOG_INFO("lidar timestamp : {}", a);
 			for(auto s : *scan)
 			{
 				if(originLocation.Distance(s.point) > 5.0f)
 				{
-					bufferCloud->points.emplace_back(s.point.x, s.point.y, s.point.z);
+					bufferCloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
 				}
 			}
 			{
-				std::lock_guard<std::mutex> lock(scanCloudMutex);
+				std::unique_lock<std::mutex> lockScan(scanCloudMutex);
 				bufferCloud.swap(scanCloud);
 				lastScanTime = std::chrono::system_clock::now();
+				
 			}
 			newScan = false;
-			
 		}
 	});
 
-	pcl::visualization::CloudViewer viewer("Cloud Viewer");
-	viewer.showCloud(filteredCloud);
+	pcl::visualization::PCLVisualizer viewer("Cloud Viewer");
+	viewer.setBackgroundColor(0.0, 0.0, 0.0);
+	viewer.addCoordinateSystem (1.0);
+	viewer.setCameraPosition(-100, 0, 50, 0, 0, 0, 0, 0, 1);
+	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(filteredCloud, 0, 255, 0);
 
 	bool exitLoop = false;
 	SPDLOG_INFO("Start main loop");
 	while(!viewer.wasStopped())
 	{
+		viewer.spinOnce();
 		if(newScan)
 		{
 			continue;
 		}
 
 		{
-			std::lock_guard<std::mutex> lock(scanCloudMutex);
+			std::lock_guard<std::mutex> lockScan(scanCloudMutex);
 			voxelFilter.setInputCloud(scanCloud);
 			voxelFilter.filter(*filteredCloud);
 			
 		}
 
+		viewer.removeAllShapes();
+       	viewer.removeAllPointClouds();
+		viewer.addPointCloud(filteredCloud, green, "filteredCloud");
+	
 		newScan = true;
 		SPDLOG_INFO("show filtered cloud. cloud size : {}", filteredCloud->points.size());
-		viewer.showCloud(filteredCloud);
 	}
 
 	lidar->Destroy();
