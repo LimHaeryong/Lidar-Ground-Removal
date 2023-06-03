@@ -11,10 +11,10 @@
 
 #include "carla_manager.h"
 
-std::unique_ptr<CarlaManager> CarlaManager::createWithConfig(const YAML::Node& config)
+std::unique_ptr<CarlaManager> CarlaManager::createWithConfig(const YAML::Node &config)
 {
     auto carlaManager = std::unique_ptr<CarlaManager>(new CarlaManager());
-    if(!carlaManager->init(config))
+    if (!carlaManager->init(config))
     {
         return nullptr;
     }
@@ -24,9 +24,9 @@ std::unique_ptr<CarlaManager> CarlaManager::createWithConfig(const YAML::Node& c
 CarlaManager::~CarlaManager()
 {
     auto actors = mWorld->GetActors();
-    for(auto actor : *actors)
+    for (auto actor : *actors)
     {
-        if(actor->GetId() == mSpectator->GetId())
+        if (actor->GetId() == mSpectator->GetId())
         {
             continue;
         }
@@ -34,7 +34,7 @@ CarlaManager::~CarlaManager()
     }
 }
 
-bool CarlaManager::init(const YAML::Node& config)
+bool CarlaManager::init(const YAML::Node &config)
 {
     using namespace std::chrono_literals;
     try
@@ -51,15 +51,15 @@ bool CarlaManager::init(const YAML::Node& config)
 
         mClient = std::make_shared<carla::client::Client>(HOST, PORT);
         mClient->SetTimeout(2s);
-        
+
         SPDLOG_INFO("Load world {}", MAP);
         mClient->LoadWorld(config["WORLD"]["MAP"].as<std::string>());
-        
+
         mWorld = std::make_shared<carla::client::World>(mClient->GetWorld());
         auto worldSetting = mWorld->GetSettings();
         worldSetting.fixed_delta_seconds = FIXED_DELTA_SECONDS;
         mWorld->ApplySettings(worldSetting, 0s);
-        
+
         mBlueprintLibrary = mWorld->GetBlueprintLibrary();
         auto vehicleLibrary = mBlueprintLibrary->Filter("vehicle");
         auto vehicleModel = *(vehicleLibrary->Find(VEHICLE_ID));
@@ -75,21 +75,21 @@ bool CarlaManager::init(const YAML::Node& config)
         specTransform.rotation.pitch = -30.0f;
         mSpectator->SetTransform(specTransform);
 
-        if(config["SENSOR"]["LIDAR"].IsDefined())
+        if (config["SENSOR"]["LIDAR"].IsDefined())
         {
             initLidar(config);
         }
 
         return true;
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         SPDLOG_ERROR("failed to initialize CarlaManager: {}", e.what());
         return false;
     }
 }
 
-void CarlaManager::initLidar(const YAML::Node& config)
+void CarlaManager::initLidar(const YAML::Node &config)
 {
     const auto LIDAR = config["SENSOR"]["LIDAR"];
     const auto LIDAR_LOCATION = LIDAR["LOCATION"].as<std::vector<float>>();
@@ -105,7 +105,7 @@ void CarlaManager::initLidar(const YAML::Node& config)
     lidarModel.SetAttribute("sensor_tick", LIDAR["SENSOR_TICK"].as<std::string>());
     lidarModel.SetAttribute("noise_stddev", LIDAR["NOISE_STDDEV"].as<std::string>());
 
-    auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]), 
-    											 carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
+    auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]),
+                                                 carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
     mLidar = boost::static_pointer_cast<carla::client::Sensor>(mWorld->SpawnActor(lidarModel, lidarTransform, mVehicle.get()));
 }

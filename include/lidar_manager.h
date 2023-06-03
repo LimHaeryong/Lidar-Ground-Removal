@@ -23,9 +23,9 @@ public:
 
     static std::unique_ptr<LidarManager> createWithLidar(boost::shared_ptr<carla::client::Sensor> lidar);
     ~LidarManager() {}
-    std::shared_ptr<std::mutex> getMutex() {return mScanCloudMutex;}
-    void getScanCloud(PointCloudT& inputCloud);
-    bool hasNewScan() const {return mHasNewScan.load();}
+    std::shared_ptr<std::mutex> getMutex() { return mScanCloudMutex; }
+    void getScanCloud(PointCloudT &inputCloud);
+    bool hasNewScan() const { return mHasNewScan.load(); }
 
 private:
     LidarManager() {}

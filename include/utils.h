@@ -7,6 +7,6 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 
-pcl::visualization::PCLVisualizer createViewer(const YAML::Node& config);
+pcl::visualization::PCLVisualizer createViewer(const YAML::Node &config);
 
 #endif // _UTILS_H_

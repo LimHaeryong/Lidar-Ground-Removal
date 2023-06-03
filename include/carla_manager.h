@@ -15,7 +15,7 @@
 class CarlaManager
 {
 public:
-    static std::unique_ptr<CarlaManager> createWithConfig(const YAML::Node& config);
+    static std::unique_ptr<CarlaManager> createWithConfig(const YAML::Node &config);
     ~CarlaManager();
 
     boost::shared_ptr<carla::client::Vehicle> getVehicle() const
@@ -29,10 +29,11 @@ public:
     }
 
 private:
-    CarlaManager() 
-    {}
-    bool init(const YAML::Node& config);
-    void initLidar(const YAML::Node& config);
+    CarlaManager()
+    {
+    }
+    bool init(const YAML::Node &config);
+    void initLidar(const YAML::Node &config);
 
     std::shared_ptr<carla::client::Client> mClient;
     std::shared_ptr<carla::client::World> mWorld;

@@ -7,7 +7,7 @@
 std::unique_ptr<LidarProcessor> LidarProcessor::createWithMutex(std::shared_ptr<std::mutex> scanCloudMutex)
 {
     auto lidarProcessor = std::unique_ptr<LidarProcessor>(new LidarProcessor());
-    if(!lidarProcessor->init(scanCloudMutex))
+    if (!lidarProcessor->init(scanCloudMutex))
     {
         return nullptr;
     }
@@ -23,7 +23,7 @@ bool LidarProcessor::init(std::shared_ptr<std::mutex> scanCloudMutex)
         mVoxelFilter.setLeafSize(0.1f, 0.1f, 0.1f);
         return true;
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         SPDLOG_ERROR("failed to initialize lidarProcessor. {}", e.what());
         return false;
@@ -37,7 +37,7 @@ void LidarProcessor::setInputCloud(PointCloudPtr inputCloud)
     mVoxelFilter.filter(*mFilteredCloud);
 }
 
-void LidarProcessor::process(PointCloudT& outputCloud)
+void LidarProcessor::process(PointCloudT &outputCloud)
 {
     outputCloud.swap(*mFilteredCloud);
 }

@@ -6,7 +6,7 @@
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
-#include <pcl/filters/voxel_grid.h> 
+#include <pcl/filters/voxel_grid.h>
 
 class LidarProcessor
 {
@@ -17,14 +17,14 @@ public:
 
     static std::unique_ptr<LidarProcessor> createWithMutex(std::shared_ptr<std::mutex> scanCloudMutex);
     void setInputCloud(PointCloudPtr inputCloud);
-    void process(PointCloudT& outputCloud);
+    void process(PointCloudT &outputCloud);
 
 private:
     LidarProcessor() {}
     bool init(std::shared_ptr<std::mutex> scanCloudMutex);
 
     std::shared_ptr<std::mutex> mScanCloudMutex;
-    PointCloudPtr mFilteredCloud;    
+    PointCloudPtr mFilteredCloud;
     pcl::VoxelGrid<PointT> mVoxelFilter;
 };
 

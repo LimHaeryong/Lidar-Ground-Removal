@@ -10,7 +10,7 @@
 std::unique_ptr<LidarManager> LidarManager::createWithLidar(boost::shared_ptr<carla::client::Sensor> lidar)
 {
     auto lidarManager = std::unique_ptr<LidarManager>(new LidarManager());
-    if(!lidarManager->init(lidar))
+    if (!lidarManager->init(lidar))
     {
         return nullptr;
     }
@@ -27,12 +27,10 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
         mBufferCloudMutex = std::make_shared<std::mutex>();
         mLidar = lidar;
         mLidar->Listen([this](auto callback)
-        {
-            lidarCallback(callback);
-        });
+                       { lidarCallback(callback); });
         return true;
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         SPDLOG_ERROR("Lidar init failed. {}", e.what());
         return false;
@@ -42,14 +40,14 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
 void LidarManager::lidarCallback(boost::shared_ptr<carla::sensor::SensorData> callback)
 {
     std::unique_lock<std::mutex> lockBuffer(*mBufferCloudMutex, std::try_to_lock);
-    if(!lockBuffer.owns_lock())
+    if (!lockBuffer.owns_lock())
     {
         return;
     }
     auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
     mBufferCloud->clear();
     mBufferCloud->reserve(scan->size());
-    for(auto s : *scan)
+    for (auto s : *scan)
     {
         mBufferCloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
     }
@@ -60,7 +58,7 @@ void LidarManager::lidarCallback(boost::shared_ptr<carla::sensor::SensorData> ca
     mHasNewScan.store(true);
 }
 
-void LidarManager::getScanCloud(PointCloudT& inputCloud)
+void LidarManager::getScanCloud(PointCloudT &inputCloud)
 {
     std::unique_lock<std::mutex> lockScan(*mScanCloudMutex);
     inputCloud.swap(*mScanCloud);
