@@ -44,6 +44,7 @@ mv dependencies libcarla-install
 - docker, nvidia-docker
 - Cmake
 - PCL
+- Yaml-cpp
 
 ## How to run
  
