@@ -20,12 +20,12 @@ public:
 
     boost::shared_ptr<carla::client::Vehicle> getVehicle() const
     {
-        return mVehicle;
+        return boost::static_pointer_cast<carla::client::Vehicle>(mVehicleActor);
     }
 
     boost::shared_ptr<carla::client::Sensor> getLidar() const
     {
-        return mLidar;
+        return boost::static_pointer_cast<carla::client::Sensor>(mLidarActor);
     }
 
 private:
@@ -38,9 +38,9 @@ private:
     std::shared_ptr<carla::client::Client> mClient;
     std::shared_ptr<carla::client::World> mWorld;
     boost::shared_ptr<carla::client::BlueprintLibrary> mBlueprintLibrary;
-    boost::shared_ptr<carla::client::Vehicle> mVehicle;
+    boost::shared_ptr<carla::client::Actor> mVehicleActor;
     boost::shared_ptr<carla::client::Actor> mSpectator;
-    boost::shared_ptr<carla::client::Sensor> mLidar;
+    boost::shared_ptr<carla::client::Actor> mLidarActor;
 };
 
 #endif // _CARLA_MANAGER_H_

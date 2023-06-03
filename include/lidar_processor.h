@@ -4,9 +4,15 @@
 #include <memory>
 #include <mutex>
 
+#include <pcl/common/distances.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
-#include <pcl/filters/voxel_grid.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
 
 class LidarProcessor
 {
@@ -26,6 +32,29 @@ private:
     std::shared_ptr<std::mutex> mScanCloudMutex;
     PointCloudPtr mFilteredCloud;
     pcl::VoxelGrid<PointT> mVoxelFilter;
+    pcl::ConditionalRemoval<PointT> mConditionalRemovalFilter;
+    pcl::SACSegmentation<PointT> mSegmentation;
+    pcl::ModelCoefficientsPtr mModelCoefficients;
+    pcl::PointIndicesPtr mInliers;
+    pcl::ExtractIndices<PointT> mExtractor;
+};
+
+class RangeCondition : public pcl::ConditionBase<pcl::PointXYZ>
+{
+public:
+    RangeCondition(float range)
+        : mRange(range)
+    {
+    }
+
+    bool evaluate(const pcl::PointXYZ &point) const
+    {
+        return pcl::euclideanDistance(mOrigin, point) >= mRange;
+    }
+
+private:
+    float mRange;
+    pcl::PointXYZ mOrigin{0.0, 0.0, 0.0};
 };
 
 #endif // _LIDAR_PROCESSOR_H_

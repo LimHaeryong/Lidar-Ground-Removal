@@ -44,10 +44,6 @@ bool CarlaManager::init(const YAML::Node &config)
         const auto FIXED_DELTA_SECONDS = config["WORLD"]["FIXED_DELTA_SECONDS"].as<double>();
         const auto MAP = config["WORLD"]["MAP"].as<std::string>();
         const auto VEHICLE_ID = config["VEHICLE_ID"].as<std::string>();
-        const auto LIDAR = config["SENSOR"]["LIDAR"];
-        const auto LIDAR_LOCATION = LIDAR["LOCATION"].as<std::vector<float>>();
-        const auto LIDAR_ROTATION = LIDAR["ROTATION"].as<std::vector<float>>();
-        const auto VOXEL_RESOLUTION = config["VOXEL_FILTER"]["RESOLUTION"].as<float>();
 
         mClient = std::make_shared<carla::client::Client>(HOST, PORT);
         mClient->SetTimeout(2s);
@@ -66,7 +62,11 @@ bool CarlaManager::init(const YAML::Node &config)
 
         auto map = mWorld->GetMap();
         auto spawnPoint = map->GetRecommendedSpawnPoints().front();
-        auto mVehicle = boost::static_pointer_cast<carla::client::Vehicle>(mWorld->SpawnActor(vehicleModel, spawnPoint));
+        mVehicleActor = mWorld->SpawnActor(vehicleModel, spawnPoint);
+        auto vehicle = boost::static_pointer_cast<carla::client::Vehicle>(mVehicleActor);
+
+        auto trafficManager = mClient->GetInstanceTM();
+        vehicle->SetAutopilot(true, trafficManager.Port());
 
         mSpectator = mWorld->GetSpectator();
         auto specTransform = spawnPoint;
@@ -107,5 +107,5 @@ void CarlaManager::initLidar(const YAML::Node &config)
 
     auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]),
                                                  carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
-    mLidar = boost::static_pointer_cast<carla::client::Sensor>(mWorld->SpawnActor(lidarModel, lidarTransform, mVehicle.get()));
+    mLidarActor = mWorld->SpawnActor(lidarModel, lidarTransform, mVehicleActor.get());
 }
