@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <carla/client/ActorList.h>
 #include <carla/client/BlueprintLibrary.h>
 #include <carla/geom/Transform.h>
 
@@ -22,8 +23,15 @@ std::unique_ptr<CarlaManager> CarlaManager::createWithConfig(const YAML::Node& c
 
 CarlaManager::~CarlaManager()
 {
-    mVehicleActor->Destroy();
-    mLidarActor->Destroy();
+    auto actors = mWorld->GetActors();
+    for(auto actor : *actors)
+    {
+        if(actor->GetId() == mSpectator->GetId())
+        {
+            continue;
+        }
+        actor->Destroy();
+    }
 }
 
 bool CarlaManager::init(const YAML::Node& config)
@@ -58,7 +66,7 @@ bool CarlaManager::init(const YAML::Node& config)
 
         auto map = mWorld->GetMap();
         auto spawnPoint = map->GetRecommendedSpawnPoints().front();
-        auto mVehicleActor = mWorld->SpawnActor(vehicleModel, spawnPoint);
+        auto mVehicle = boost::static_pointer_cast<carla::client::Vehicle>(mWorld->SpawnActor(vehicleModel, spawnPoint));
 
         mSpectator = mWorld->GetSpectator();
         auto specTransform = spawnPoint;
@@ -99,5 +107,5 @@ void CarlaManager::initLidar(const YAML::Node& config)
 
     auto lidarTransform = carla::geom::Transform(carla::geom::Location(LIDAR_LOCATION[0], LIDAR_LOCATION[1], LIDAR_LOCATION[2]), 
     											 carla::geom::Rotation(LIDAR_ROTATION[0], LIDAR_ROTATION[1], LIDAR_ROTATION[2]));
-    mLidarActor = mWorld->SpawnActor(lidarModel, lidarTransform, mVehicleActor.get());
+    mLidar = boost::static_pointer_cast<carla::client::Sensor>(mWorld->SpawnActor(lidarModel, lidarTransform, mVehicle.get()));
 }

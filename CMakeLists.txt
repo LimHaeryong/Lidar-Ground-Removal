@@ -14,6 +14,8 @@ add_executable(ground_removal
     src/carla_manager.cpp include/carla_manager.h
     src/ground_removal.cpp include/ground_removal.h
     src/utils.cpp include/utils.h
+    src/lidar_manager.cpp include/lidar_manager.h
+    src/lidar_processor.cpp include/lidar_manager.h
 )
 
 target_include_directories(ground_removal PUBLIC

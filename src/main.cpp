@@ -1,24 +1,9 @@
-#include <atomic>
-#include <chrono>
-#include <cstdint>
-#include <exception>
-#include <mutex>
-#include <string>
-#include <thread>
-#include <vector>
-
 #include <yaml-cpp/yaml.h>
 #include <spdlog/spdlog.h>
 
-#include <carla/geom/Transform.h>
-#include <carla/sensor/data/LidarData.h>
-#include <carla/sensor/data/LidarMeasurement.h>
-
-#include <pcl/point_types.h>
-#include <pcl/point_cloud.h>
-#include <pcl/filters/voxel_grid.h>
-
 #include "carla_manager.h"
+#include "lidar_manager.h"
+#include "lidar_processor.h"
 #include "utils.h"
 
 using PointT = pcl::PointXYZ;
@@ -54,74 +39,41 @@ int main(int argc, char** argv)
 		SPDLOG_ERROR("failed to create carlaManager");
 		return -1;
 	}
-
 	auto vehicle = carlaManager->getVehicle();
 	auto lidar = carlaManager->getLidar();
-
-	PointCloudPtr scanCloud = pcl::make_shared<PointCloudT>();
-	PointCloudPtr bufferCloud = pcl::make_shared<PointCloudT>();
-	PointCloudPtr filteredCloud = pcl::make_shared<PointCloudT>();
-
-	pcl::VoxelGrid<PointT> voxelFilter;
-	voxelFilter.setLeafSize(0.1f, 0.1f, 0.1f);
-
-	std::mutex scanCloudMutex, bufferCloudMutex, viewerMutex;
-	std::atomic<bool> newScan(false);
-	std::chrono::time_point<std::chrono::system_clock> lastScanTime;
-	lidar->Listen([&scanCloudMutex, &bufferCloudMutex, &newScan, &lastScanTime, &scanCloud, &bufferCloud](auto callback)
-	{
-		if(newScan)
-		{
-			std::unique_lock<std::mutex> lockBuffer(bufferCloudMutex, std::try_to_lock);
-			if(!lockBuffer.owns_lock())
-			{
-				return;
-			}
-			auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
-			bufferCloud->points.clear();
-			bufferCloud->points.reserve(scan->size());
-			auto originLocation = carla::geom::Location(0.0f, 0.0f, 0.0f);
-			double a = (*scan).GetTimestamp();
-			SPDLOG_INFO("lidar timestamp : {}", a);
-			for(auto s : *scan)
-			{
-				if(originLocation.Distance(s.point) > 5.0f)
-				{
-					bufferCloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
-				}
-			}
-			{
-				std::unique_lock<std::mutex> lockScan(scanCloudMutex);
-				bufferCloud.swap(scanCloud);
-				lastScanTime = std::chrono::system_clock::now();
-			}
-			newScan = false;
-		}
-	});
-
+	
 	auto viewer = createViewer(config);
-	pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> green(filteredCloud, 0, 255, 0);
+	auto lidarManager = LidarManager::createWithLidar(carlaManager->getLidar());
+	if(lidarManager == nullptr)
+	{
+		SPDLOG_ERROR("failed to create lidarManager");
+		return -1;
+	}
+	auto lidarProcessor = LidarProcessor::createWithMutex(lidarManager->getMutex());
+	if(lidarProcessor == nullptr)
+	{
+		SPDLOG_ERROR("failed to create lidarProcessor");
+		return -1;
+	}	
+	PointCloudPtr inputCloud = pcl::make_shared<PointCloudT>();
+	PointCloudPtr outputCloud = pcl::make_shared<PointCloudT>();
+	pcl::visualization::PointCloudColorHandlerCustom<PointT> green(outputCloud, 0, 255, 0);
 
-	bool exitLoop = false;
 	SPDLOG_INFO("Start main loop");
 	while(!viewer.wasStopped())
 	{
-		viewer.spinOnce();
-		if(newScan)
+		if(!lidarManager->hasNewScan())
 		{
 			continue;
 		}
-		{
-			std::lock_guard<std::mutex> lockScan(scanCloudMutex);
-			voxelFilter.setInputCloud(scanCloud);
-			voxelFilter.filter(*filteredCloud);
-		}
+		lidarManager->getScanCloud(*inputCloud);
+		lidarProcessor->setInputCloud(inputCloud);
+		lidarProcessor->process(*outputCloud);
        	viewer.removeAllPointClouds();
-		viewer.addPointCloud(filteredCloud, green, "filteredCloud");
-		newScan = true;
+		viewer.addPointCloud(outputCloud, green, "filteredCloud");
+		viewer.spinOnce();
 	}
-	lidar->Destroy();
-	vehicle->Destroy();
+
 	SPDLOG_INFO("End program");
 	return 0;
 }
