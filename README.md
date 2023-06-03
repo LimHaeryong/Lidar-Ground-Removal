@@ -3,6 +3,8 @@ This repository provides a solution for "ground removal" from point cloud data.
 
 It utilizes the Carla Server and C++ Carla client library to acquire point cloud data.
 
+Currently, a simple RANSAC algorithm is used to segment the ground. However, there are plans to incorporate more advanced algorithms in the future.
+
 ## Installation
 ### 0. download carla-server docker image
 ```bash
@@ -27,7 +29,7 @@ make setup
 make LibCarla
 ```
 
-### 2. git clone
+### 2. clone the repository
 ```
 git clone https://github.com/LimHaeryong/Lidar-Ground-Removal.git
 cd Lidar-Ground-Removal
@@ -55,3 +57,6 @@ mkdir build && cd build
 cmake .. && make -j(nproc)
 ./Lidar-Ground-Removal
 ```
+
+## Result
+![](./resources/ground_removal_gif.gif)
