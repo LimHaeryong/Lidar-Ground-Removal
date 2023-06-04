@@ -23,9 +23,8 @@ public:
     using PointCloudPtr = pcl::PointCloud<PointT>::Ptr;
 
     static std::unique_ptr<LidarManager> createWithLidar(boost::shared_ptr<carla::client::Sensor> lidar);
-    std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> getLidarDataQueue() const {return mLidarDataQueue;}
+    std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> getLidarDataQueue() const { return mLidarDataQueue; }
     ~LidarManager() {}
-
 
 private:
     LidarManager() {}

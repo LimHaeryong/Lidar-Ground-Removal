@@ -43,6 +43,8 @@ bool LidarProcessor::init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarD
 void LidarProcessor::process(PointCloudT &outputCloud)
 {
     auto cloud = mLidarDataQueue->pop();
+    mVoxelFilter.setInputCloud(cloud);
+    mVoxelFilter.filter(*cloud);
     mConditionalRemovalFilter.setInputCloud(cloud);
     mConditionalRemovalFilter.filter(*cloud);
     mSegmentation.setInputCloud(cloud);

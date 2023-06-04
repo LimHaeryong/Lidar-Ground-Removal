@@ -14,14 +14,14 @@ public:
     ThreadsafeQueue() {}
     ~ThreadsafeQueue() {}
 
-    void push(const T& data)
+    void push(const T &data)
     {
         std::unique_lock<std::mutex> lock(mMutex);
         mData.push(data);
         mConditionVariable.notify_one();
     }
 
-    void push(T&& data)
+    void push(T &&data)
     {
         std::unique_lock<std::mutex> lock(mMutex);
         mData.push(std::move(data));
@@ -32,14 +32,12 @@ public:
     {
         std::unique_lock<std::mutex> lock(mMutex);
         mConditionVariable.wait(lock, [this]
-        {
-            return !mData.empty();
-        });
+                                { return !mData.empty(); });
         T value = std::move(mData.front());
         mData.pop();
         return value;
     }
-    
+
 private:
     std::queue<T> mData;
     std::mutex mMutex;
