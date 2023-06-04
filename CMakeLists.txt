@@ -15,6 +15,7 @@ add_executable(ground_removal
     src/utils.cpp include/utils.h
     src/lidar_manager.cpp include/lidar_manager.h
     src/lidar_processor.cpp include/lidar_manager.h
+    include/threadsafe_queue.h
 )
 
 target_include_directories(ground_removal PUBLIC

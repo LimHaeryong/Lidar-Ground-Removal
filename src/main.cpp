@@ -29,48 +29,42 @@ int main(int argc, char **argv)
 	}
 	catch (const std::exception &e)
 	{
-		SPDLOG_ERROR("failed to load config file: {}", e.what());
+		SPDLOG_ERROR("Failed to load config file: {}", e.what());
 		return -1;
 	}
 
 	auto carlaManager = CarlaManager::createWithConfig(config);
 	if (carlaManager == nullptr)
 	{
-		SPDLOG_ERROR("failed to create carlaManager");
+		SPDLOG_ERROR("Failed to create carlaManager");
 		return -1;
 	}
-	auto vehicle = carlaManager->getVehicle();
-	auto lidar = carlaManager->getLidar();
 
-	auto viewer = createViewer(config);
 	auto lidarManager = LidarManager::createWithLidar(carlaManager->getLidar());
 	if (lidarManager == nullptr)
 	{
-		SPDLOG_ERROR("failed to create lidarManager");
+		SPDLOG_ERROR("Failed to create lidarManager");
 		return -1;
 	}
-	auto lidarProcessor = LidarProcessor::createWithMutex(lidarManager->getMutex());
+
+	auto lidarProcessor = LidarProcessor::createWithLidarDataQueue(lidarManager->getLidarDataQueue());
 	if (lidarProcessor == nullptr)
 	{
-		SPDLOG_ERROR("failed to create lidarProcessor");
+		SPDLOG_ERROR("Failed to create lidarProcessor");
 		return -1;
 	}
-	PointCloudPtr inputCloud = pcl::make_shared<PointCloudT>();
-	PointCloudPtr outputCloud = pcl::make_shared<PointCloudT>();
+
+	auto outputCloud = pcl::make_shared<PointCloudT>();
+
+	auto viewer = createViewer(config);
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> green(outputCloud, 0, 255, 0);
 
 	SPDLOG_INFO("Start main loop");
 	while (!viewer.wasStopped())
 	{
-		if (!lidarManager->hasNewScan())
-		{
-			continue;
-		}
-		lidarManager->getScanCloud(*inputCloud);
-		lidarProcessor->setInputCloud(inputCloud);
 		lidarProcessor->process(*outputCloud);
 		viewer.removeAllPointClouds();
-		viewer.addPointCloud(outputCloud, green, "filteredCloud");
+		viewer.addPointCloud(outputCloud, green, "outputCloud");
 		viewer.spinOnce();
 	}
 

@@ -4,24 +4,24 @@
 
 #include "lidar_processor.h"
 
-std::unique_ptr<LidarProcessor> LidarProcessor::createWithMutex(std::shared_ptr<std::mutex> scanCloudMutex)
+std::unique_ptr<LidarProcessor> LidarProcessor::createWithLidarDataQueue(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue)
 {
     auto lidarProcessor = std::unique_ptr<LidarProcessor>(new LidarProcessor());
-    if (!lidarProcessor->init(scanCloudMutex))
+    if (!lidarProcessor->init(lidarDataQueue))
     {
         return nullptr;
     }
     return std::move(lidarProcessor);
 }
 
-bool LidarProcessor::init(std::shared_ptr<std::mutex> scanCloudMutex)
+bool LidarProcessor::init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue)
 {
     try
     {
-        mScanCloudMutex = scanCloudMutex;
-        mFilteredCloud = pcl::make_shared<PointCloudT>();
+        mLidarDataQueue = lidarDataQueue;
+        mLidarProcessedQueue = std::make_shared<ThreadsafeQueue<PointCloudPtr>>();
         mVoxelFilter.setLeafSize(0.1f, 0.1f, 0.1f);
-        auto rangeCondition = pcl::make_shared<RangeCondition>(5.0f);
+        auto rangeCondition = pcl::make_shared<RangeCondition>(3.0f);
         mConditionalRemovalFilter.setCondition(rangeCondition);
         mModelCoefficients = pcl::make_shared<pcl::ModelCoefficients>();
         mInliers = pcl::make_shared<pcl::PointIndices>();
@@ -40,20 +40,14 @@ bool LidarProcessor::init(std::shared_ptr<std::mutex> scanCloudMutex)
     }
 }
 
-void LidarProcessor::setInputCloud(PointCloudPtr inputCloud)
-{
-    std::unique_lock<std::mutex> lockInput(*mScanCloudMutex);
-    mVoxelFilter.setInputCloud(inputCloud);
-    mVoxelFilter.filter(*mFilteredCloud);
-}
-
 void LidarProcessor::process(PointCloudT &outputCloud)
 {
-    mConditionalRemovalFilter.setInputCloud(mFilteredCloud);
-    mConditionalRemovalFilter.filter(*mFilteredCloud);
-    mSegmentation.setInputCloud(mFilteredCloud);
+    auto cloud = mLidarDataQueue->pop();
+    mConditionalRemovalFilter.setInputCloud(cloud);
+    mConditionalRemovalFilter.filter(*cloud);
+    mSegmentation.setInputCloud(cloud);
     mSegmentation.segment(*mInliers, *mModelCoefficients);
-    mExtractor.setInputCloud(mFilteredCloud);
+    mExtractor.setInputCloud(cloud);
     mExtractor.setIndices(mInliers);
     mExtractor.filter(outputCloud);
 }

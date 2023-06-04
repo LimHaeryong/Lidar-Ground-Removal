@@ -14,6 +14,8 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 
+#include "threadsafe_queue.h"
+
 class LidarProcessor
 {
 public:
@@ -21,16 +23,17 @@ public:
     using PointCloudT = pcl::PointCloud<PointT>;
     using PointCloudPtr = pcl::PointCloud<PointT>::Ptr;
 
-    static std::unique_ptr<LidarProcessor> createWithMutex(std::shared_ptr<std::mutex> scanCloudMutex);
+    static std::unique_ptr<LidarProcessor> createWithLidarDataQueue(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue);
     void setInputCloud(PointCloudPtr inputCloud);
     void process(PointCloudT &outputCloud);
 
 private:
     LidarProcessor() {}
-    bool init(std::shared_ptr<std::mutex> scanCloudMutex);
+    bool init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue);
 
-    std::shared_ptr<std::mutex> mScanCloudMutex;
-    PointCloudPtr mFilteredCloud;
+    std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> mLidarDataQueue;
+    std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> mLidarProcessedQueue;
+
     pcl::VoxelGrid<PointT> mVoxelFilter;
     pcl::ConditionalRemoval<PointT> mConditionalRemovalFilter;
     pcl::SACSegmentation<PointT> mSegmentation;
@@ -54,7 +57,7 @@ public:
 
 private:
     float mRange;
-    pcl::PointXYZ mOrigin{0.0, 0.0, 0.0};
+    pcl::PointXYZ mOrigin{0.0f, 0.0f, 0.0f};
 };
 
 #endif // _LIDAR_PROCESSOR_H_

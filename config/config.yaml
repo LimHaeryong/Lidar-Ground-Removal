@@ -3,7 +3,7 @@ CLIENT:
   PORT: 2000
 
 WORLD:
-  MAP: Town05
+  MAP: Town04
   FIXED_DELTA_SECONDS: 0.01
 
 VEHICLE_ID: vehicle.mercedes.coupe_2020
