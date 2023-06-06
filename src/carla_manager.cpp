@@ -46,7 +46,7 @@ bool CarlaManager::init(const YAML::Node &config)
         const auto VEHICLE_ID = config["VEHICLE_ID"].as<std::string>();
 
         mClient = std::make_shared<carla::client::Client>(HOST, PORT);
-        mClient->SetTimeout(2s);
+        mClient->SetTimeout(5s);
 
         SPDLOG_INFO("Load world {}", MAP);
         mClient->LoadWorld(config["WORLD"]["MAP"].as<std::string>());

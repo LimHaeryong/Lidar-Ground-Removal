@@ -25,7 +25,8 @@ public:
 
     static std::unique_ptr<LidarProcessor> createWithLidarDataQueue(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue);
     void setInputCloud(PointCloudPtr inputCloud);
-    void process(PointCloudT &outputCloud);
+    void process();
+    std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> getLidarProcessedQueue() const { return mLidarProcessedQueue; }
 
 private:
     LidarProcessor() {}

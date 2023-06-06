@@ -53,16 +53,19 @@ int main(int argc, char **argv)
 		SPDLOG_ERROR("Failed to create lidarProcessor");
 		return -1;
 	}
+	auto lidarProcessedQueue = lidarProcessor->getLidarProcessedQueue();
 
 	auto outputCloud = pcl::make_shared<PointCloudT>();
 
 	auto viewer = createViewer(config);
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> green(outputCloud, 0, 255, 0);
-
+	
 	SPDLOG_INFO("Start main loop");
 	while (!viewer.wasStopped())
 	{
-		lidarProcessor->process(*outputCloud);
+		lidarProcessor->process();
+		outputCloud = lidarProcessedQueue->pop();
+		green.setInputCloud(outputCloud);
 		viewer.removeAllPointClouds();
 		viewer.addPointCloud(outputCloud, green, "outputCloud");
 		viewer.spinOnce();
