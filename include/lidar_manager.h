@@ -35,7 +35,8 @@ private:
     void lidarCallback(boost::shared_ptr<carla::sensor::SensorData> callback);
 
     PointCloudPtr mBufferCloud;
-    int mBufferCount{0};
+    uint16_t mBufferCount{0};
+    uint16_t mBufferMaxCount;
     boost::shared_ptr<carla::client::Sensor> mLidar;
     std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> mLidarDataQueue;
     std::atomic<bool> mRunning;

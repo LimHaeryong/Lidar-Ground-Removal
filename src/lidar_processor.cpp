@@ -71,20 +71,6 @@ void LidarProcessor::process()
         mExtractor.setInputCloud(cloud);
         mExtractor.setIndices(mInliers);
         mExtractor.filter(*cloud);
-
-        // std::size_t points = cloud->size();
-        // while (cloud->size() > points * 3 / 10)
-        // {
-        //     mSegmentation.setInputCloud(cloud);
-        //     mSegmentation.segment(*mInliers, *mModelCoefficients);
-        //     if (mInliers->indices.size() < points / 100)
-        //     {
-        //         break;
-        //     }
-        //     mExtractor.setInputCloud(cloud);
-        //     mExtractor.setIndices(mInliers);
-        //     mExtractor.filter(*cloud);
-        // }
         mLidarProcessedQueue->push(cloud);
     }
 }

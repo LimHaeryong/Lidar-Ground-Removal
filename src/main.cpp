@@ -10,8 +10,6 @@ using PointT = pcl::PointXYZ;
 using PointCloudT = pcl::PointCloud<PointT>;
 using PointCloudPtr = pcl::PointCloud<PointT>::Ptr;
 
-using namespace std::chrono_literals;
-
 int main(int argc, char **argv)
 {
 	SPDLOG_INFO("Start program");
@@ -72,6 +70,7 @@ int main(int argc, char **argv)
 		viewer.addPointCloud(outputCloud, green, "outputCloud");
 		viewer.spinOnce();
 	}
+
 	lidarProcessor->stop();
 	lidarManager->stop();
 	SPDLOG_INFO("End program");

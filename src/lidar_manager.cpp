@@ -1,6 +1,5 @@
 #include <exception>
 #include <mutex>
-
 #include <iostream>
 
 #include <spdlog/spdlog.h>
@@ -24,6 +23,20 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
         mLidarDataQueue = std::make_shared<ThreadsafeQueue<PointCloudPtr>>();
         mLidar = lidar;
         mRunning.store(false);
+        double sensor_tick, rotation_frequency;
+        for(auto& attribute : mLidar->GetAttributes())
+        {
+            std::string id = attribute.GetId();
+            if(id == "sensor_tick")
+            {
+                sensor_tick = std::stod(attribute.GetValue());
+            }
+            if(id == "rotation_frequency")
+            {
+                rotation_frequency = std::stod(attribute.GetValue());
+            }
+        }
+        mBufferMaxCount = static_cast<uint16_t>(1.0 / sensor_tick / rotation_frequency);
         mLidar->Listen([this](auto callback)
                        {
                            if (mRunning.load() == true)
@@ -42,24 +55,21 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
 
 void LidarManager::lidarCallback(boost::shared_ptr<carla::sensor::SensorData> callback)
 {
-    SPDLOG_INFO("lidar callback");
     auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
     if(mBufferCount == 0)
     {
         mBufferCloud = pcl::make_shared<PointCloudT>();
+        mBufferCloud->reserve(scan->size() * mBufferMaxCount);
     }
     ++mBufferCount;
-    mBufferCloud->reserve(mBufferCloud->size() + scan->size());
     for (auto s : *scan)
     {
         mBufferCloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
     }
-
-    if(mBufferCount == 5)
+    if(mBufferCount == mBufferMaxCount)
     {
         mLidarDataQueue->push(std::move(mBufferCloud));
         mBufferCloud.reset();
         mBufferCount = 0;
-        SPDLOG_INFO("lidar callback pushback");
     }
 }
