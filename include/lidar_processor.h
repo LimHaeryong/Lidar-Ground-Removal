@@ -1,8 +1,10 @@
 #ifndef _LIDAR_PROCESSOR_H_
 #define _LIDAR_PROCESSOR_H_
 
+#include <atomic>
 #include <memory>
 #include <mutex>
+#include <thread>
 
 #include <pcl/common/distances.h>
 #include <pcl/filters/conditional_removal.h>
@@ -24,7 +26,9 @@ public:
     using PointCloudPtr = pcl::PointCloud<PointT>::Ptr;
 
     static std::unique_ptr<LidarProcessor> createWithLidarDataQueue(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarDataQueue);
-    void setInputCloud(PointCloudPtr inputCloud);
+    ~LidarProcessor() {}
+    void start();
+    void stop();
     void process();
     std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> getLidarProcessedQueue() const { return mLidarProcessedQueue; }
 
@@ -34,6 +38,8 @@ private:
 
     std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> mLidarDataQueue;
     std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> mLidarProcessedQueue;
+    std::thread mProcessThread;
+    std::atomic<bool> mRunning;
 
     pcl::VoxelGrid<PointT> mVoxelFilter;
     pcl::ConditionalRemoval<PointT> mConditionalRemovalFilter;

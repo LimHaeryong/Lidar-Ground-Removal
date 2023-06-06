@@ -23,8 +23,14 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
     {
         mLidarDataQueue = std::make_shared<ThreadsafeQueue<PointCloudPtr>>();
         mLidar = lidar;
+        mRunning.store(false);
         mLidar->Listen([this](auto callback)
-                       { lidarCallback(callback); });
+                       {
+                           if (mRunning.load() == true)
+                           {
+                               lidarCallback(callback);
+                           }
+                       });
         return true;
     }
     catch (const std::exception &e)
@@ -36,12 +42,24 @@ bool LidarManager::init(boost::shared_ptr<carla::client::Sensor> lidar)
 
 void LidarManager::lidarCallback(boost::shared_ptr<carla::sensor::SensorData> callback)
 {
+    SPDLOG_INFO("lidar callback");
     auto scan = boost::static_pointer_cast<carla::sensor::data::LidarMeasurement>(callback);
-    auto cloud = pcl::make_shared<PointCloudT>();
-    cloud->reserve(scan->size());
+    if(mBufferCount == 0)
+    {
+        mBufferCloud = pcl::make_shared<PointCloudT>();
+    }
+    ++mBufferCount;
+    mBufferCloud->reserve(mBufferCloud->size() + scan->size());
     for (auto s : *scan)
     {
-        cloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
+        mBufferCloud->points.emplace_back(s.point.x, -s.point.y, s.point.z);
     }
-    mLidarDataQueue->push(cloud);
+
+    if(mBufferCount == 5)
+    {
+        mLidarDataQueue->push(std::move(mBufferCloud));
+        mBufferCloud.reset();
+        mBufferCount = 0;
+        SPDLOG_INFO("lidar callback pushback");
+    }
 }

@@ -18,6 +18,10 @@ public:
     {
         std::unique_lock<std::mutex> lock(mMutex);
         mData.push(data);
+        if(mData.size() > 5)
+        {
+            mData.pop();
+        }
         mConditionVariable.notify_one();
     }
 

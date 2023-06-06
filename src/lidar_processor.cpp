@@ -20,6 +20,8 @@ bool LidarProcessor::init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarD
     {
         mLidarDataQueue = lidarDataQueue;
         mLidarProcessedQueue = std::make_shared<ThreadsafeQueue<PointCloudPtr>>();
+        mRunning.store(false);
+
         mVoxelFilter.setLeafSize(0.1f, 0.1f, 0.1f);
         auto rangeCondition = pcl::make_shared<RangeCondition>(3.0f);
         mConditionalRemovalFilter.setCondition(rangeCondition);
@@ -40,26 +42,49 @@ bool LidarProcessor::init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarD
     }
 }
 
+void LidarProcessor::start()
+{
+    mRunning.store(true);
+    mProcessThread = std::thread(&LidarProcessor::process, this);
+}
+
+void LidarProcessor::stop()
+{
+    mRunning.store(false);
+    if (mProcessThread.joinable())
+    {
+        mProcessThread.join();
+    }
+}
+
 void LidarProcessor::process()
 {
-    auto cloud = mLidarDataQueue->pop();
-    //mVoxelFilter.setInputCloud(cloud);
-    //mVoxelFilter.filter(*cloud);
-    mConditionalRemovalFilter.setInputCloud(cloud);
-    mConditionalRemovalFilter.filter(*cloud);
-
-    std::size_t points = cloud->size();
-    while(cloud->size() > points * 3 / 10)
+    while (mRunning.load() == true)
     {
+        auto cloud = mLidarDataQueue->pop();
+        // mVoxelFilter.setInputCloud(cloud);
+        // mVoxelFilter.filter(*cloud);
+        mConditionalRemovalFilter.setInputCloud(cloud);
+        mConditionalRemovalFilter.filter(*cloud);
         mSegmentation.setInputCloud(cloud);
         mSegmentation.segment(*mInliers, *mModelCoefficients);
-        if(mInliers->indices.size() < points / 100)
-        {
-            break;
-        }
         mExtractor.setInputCloud(cloud);
         mExtractor.setIndices(mInliers);
         mExtractor.filter(*cloud);
+
+        // std::size_t points = cloud->size();
+        // while (cloud->size() > points * 3 / 10)
+        // {
+        //     mSegmentation.setInputCloud(cloud);
+        //     mSegmentation.segment(*mInliers, *mModelCoefficients);
+        //     if (mInliers->indices.size() < points / 100)
+        //     {
+        //         break;
+        //     }
+        //     mExtractor.setInputCloud(cloud);
+        //     mExtractor.setIndices(mInliers);
+        //     mExtractor.filter(*cloud);
+        // }
+        mLidarProcessedQueue->push(cloud);
     }
-    mLidarProcessedQueue->push(cloud);
 }

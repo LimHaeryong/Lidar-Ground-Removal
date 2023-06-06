@@ -60,17 +60,20 @@ int main(int argc, char **argv)
 	auto viewer = createViewer(config);
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> green(outputCloud, 0, 255, 0);
 	
+	lidarManager->start();
+	lidarProcessor->start();
+
 	SPDLOG_INFO("Start main loop");
 	while (!viewer.wasStopped())
 	{
-		lidarProcessor->process();
 		outputCloud = lidarProcessedQueue->pop();
 		green.setInputCloud(outputCloud);
 		viewer.removeAllPointClouds();
 		viewer.addPointCloud(outputCloud, green, "outputCloud");
 		viewer.spinOnce();
 	}
-
+	lidarProcessor->stop();
+	lidarManager->stop();
 	SPDLOG_INFO("End program");
 	return 0;
 }
