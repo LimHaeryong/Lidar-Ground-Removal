@@ -22,7 +22,7 @@ bool LidarProcessor::init(std::shared_ptr<ThreadsafeQueue<PointCloudPtr>> lidarD
         mLidarProcessedQueue = std::make_shared<ThreadsafeQueue<PointCloudPtr>>();
         mRunning.store(false);
 
-        mVoxelFilter.setLeafSize(0.1f, 0.1f, 0.1f);
+        mVoxelFilter.setLeafSize(1.0f, 1.0f, 1.0f);
         auto rangeCondition = pcl::make_shared<RangeCondition>(3.0f);
         mConditionalRemovalFilter.setCondition(rangeCondition);
         mModelCoefficients = pcl::make_shared<pcl::ModelCoefficients>();
@@ -66,11 +66,14 @@ void LidarProcessor::process()
         // mVoxelFilter.filter(*cloud);
         mConditionalRemovalFilter.setInputCloud(cloud);
         mConditionalRemovalFilter.filter(*cloud);
-        mSegmentation.setInputCloud(cloud);
-        mSegmentation.segment(*mInliers, *mModelCoefficients);
-        mExtractor.setInputCloud(cloud);
-        mExtractor.setIndices(mInliers);
-        mExtractor.filter(*cloud);
+        for (int i = 0; i < 2; ++i)
+        {
+            mSegmentation.setInputCloud(cloud);
+            mSegmentation.segment(*mInliers, *mModelCoefficients);
+            mExtractor.setInputCloud(cloud);
+            mExtractor.setIndices(mInliers);
+            mExtractor.filter(*cloud);
+        }
         mLidarProcessedQueue->push(cloud);
     }
 }

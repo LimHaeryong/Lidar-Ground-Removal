@@ -58,6 +58,7 @@ int main(int argc, char **argv)
 	auto viewer = createViewer(config);
 	pcl::visualization::PointCloudColorHandlerCustom<PointT> green(outputCloud, 0, 255, 0);
 	
+	carlaManager->start();
 	lidarManager->start();
 	lidarProcessor->start();
 
@@ -73,6 +74,8 @@ int main(int argc, char **argv)
 
 	lidarProcessor->stop();
 	lidarManager->stop();
+	carlaManager->stop();
+	
 	SPDLOG_INFO("End program");
 	return 0;
 }
